@@ -152,6 +152,12 @@ SPAM_KEYWORDS = [
     "🔞 profilimda",
     "18+ profilimda",
     "18+ profilimga",
+    "profilimda",
+    "obuna bo'ling",
+    "❤️",
+    "😍",
+    "🥰",
+    "😘",
 ]
 
 logging.basicConfig(
