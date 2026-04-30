@@ -154,25 +154,20 @@ SPAM_KEYWORDS = [
     "18+ profilimga",
 ]
 
-
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s",
     level=logging.INFO,
 )
 log = logging.getLogger(__name__)
 
-
 def has_spam_keyword(text: str) -> bool:
-    """Xabarda spam kalit so'z bormi?"""
     text_lower = text.lower()
     for kw in SPAM_KEYWORDS:
         if kw.lower() in text_lower:
             return True
     return False
 
-
 async def get_profile_photo_count(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Foydalanuvchi profil rasmlar sonini qaytaradi."""
     try:
         photos = await context.bot.get_user_profile_photos(user_id, limit=2)
         return photos.total_count
@@ -181,23 +176,18 @@ async def get_profile_photo_count(user_id: int, context: ContextTypes.DEFAULT_TY
         return -1  
 
 async def ban_user(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_TYPE):
-    """Foydalanuvchini guruhdan ban qiladi."""
     try:
         await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
     except Exception as e:
         log.error(f"Ban qilishda xato: {e}")
 
-
 async def delete_message(chat_id: int, message_id: int, context: ContextTypes.DEFAULT_TYPE):
-    """Spam xabarni o'chiradi."""
     try:
         await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
     except Exception as e:
         log.warning(f"Xabarni o'chirishda xato: {e}")
 
-
 async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Har bir xabarni tekshiradi."""
     message = update.message
     if not message or not message.text:
         return
@@ -211,7 +201,6 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log.info(f"Kalit so'z topildi | User: {user.id} | Chat: {chat.id}")
 
     no_username = not user.username
-
     photo_count = await get_profile_photo_count(user.id, context)
     one_photo = (photo_count == 1)
 
@@ -222,11 +211,8 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if no_username and one_photo:
         log.warning(f"🚨 SPAM aniqlandi! User: {user.id} (@{user.username}) | Chat: {chat.id}")
-
         await delete_message(chat.id, message.message_id, context)
-
         await ban_user(chat.id, user.id, context)
-
         try:
             msg = await context.bot.send_message(
                 chat_id=chat.id,
@@ -243,11 +229,10 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         log.info(f"Shubhali xabar lekin to'liq spam emas → e'tiborsiz qoldirildi")
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start komandasi uchun handler."""
     bot = await context.bot.get_me()
     chat = update.effective_chat
+    user = update.effective_user
     chat_type = chat.type
 
     admin_link = (
@@ -256,29 +241,65 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if chat_type == "private":
-        keyboard = [[InlineKeyboardButton("🛡 Guruhga qo'shish", url=admin_link)]]
-        text = "🛡 <b>SpamKuzatchi</b> botini guruhga qo'shish uchun pastdagi tugmani bosing:"
+        keyboard = [[InlineKeyboardButton("+ Guruhga qo'shish", url=admin_link)]]
+        text = "+ <b>SpamKuzatchi</b> botini guruhga qo'shish uchun pastdagi tugmani bosing:"
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     else:
+        try:
+            member_info = await chat.get_member(user.id)
+            if member_info.status not in ["administrator", "creator"]:
+                log.info(f"Admin bo'lmagan foydalanuvchi /start bosdi: {user.id}")
+                return
+        except Exception as e:
+            log.warning(f"Foydalanuvchini tekshirishda xato: {e}")
+            return
     
         try:
             member = await chat.get_member(bot.id)
             if member.status == "administrator":
                 text = "✅ <b>Bot faol!</b>"
                 msg = await update.message.reply_text(text, parse_mode="HTML")
-      
                 asyncio.create_task(delete_message_after_delay(chat.id, msg.message_id, context, 10))
             else:
-  
-                keyboard = [[InlineKeyboardButton("🛡 Admin huquqini berish", url=admin_link)]]
-                text = "🛡 Bot ishlashi uchun unga <b>Admin</b> huquqini berishingiz kerak:"
+                keyboard = [[InlineKeyboardButton("+ Admin huquqini berish", url=admin_link)]]
+                text = "+ Bot ishlashi uchun unga <b>Admin</b> huquqini berishingiz kerak:"
                 await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
         except Exception as e:
             log.warning(f"Guruhda adminlikni tekshirishda xato: {e}")
 
+async def manual_ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message
+    if not message or not message.reply_to_message:
+        return
+
+    chat = update.effective_chat
+    user = update.effective_user
+
+    try:
+        member_info = await chat.get_member(user.id)
+        if member_info.status not in ["administrator", "creator"]:
+            return
+    except Exception as e:
+        log.warning(f"Adminlikni tekshirishda xato: {e}")
+        return
+
+    target_user = message.reply_to_message.from_user
+    bot_info = await context.bot.get_me()
+    if target_user.id == bot_info.id:
+        return
+
+    try:
+        await context.bot.ban_chat_member(chat_id=chat.id, user_id=target_user.id)
+        msg = await message.reply_text(
+            f"🚫 <b>{target_user.full_name}</b> guruhdan ban qilindi!", 
+            parse_mode="HTML"
+        )
+        asyncio.create_task(delete_message_after_delay(chat.id, msg.message_id, context, 15))
+        asyncio.create_task(delete_message_after_delay(chat.id, message.message_id, context, 15))
+    except Exception as e:
+        log.error(f"Manual ban xatosi: {e}")
 
 async def on_added_to_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Bot guruhga qo'shilganda yoki admin bo'lganda ishlaydi."""
     result = update.my_chat_member
     if not result:
         return
@@ -292,7 +313,7 @@ async def on_added_to_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"https://t.me/{bot.username}?startgroup=true"
             f"&admin=delete_messages+restrict_members+pin_messages+invite_users"
         )
-        keyboard = [[InlineKeyboardButton("🛡 Admin huquqini berish", url=admin_link)]]
+        keyboard = [[InlineKeyboardButton("+ Admin huquqini berish", url=admin_link)]]
         
         text = (
             "🤖Meni guruhga qo'shdingiz.\n\n"
@@ -311,7 +332,6 @@ async def on_added_to_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif new_status == "administrator":
         text = "✅ <b>Bot muvaffaqiyatli faollashtirildi!</b>"
-        
         try:
             msg = await context.bot.send_message(
                 chat_id=result.chat.id,
@@ -322,33 +342,27 @@ async def on_added_to_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             log.warning(f"Aktivatsiya xabarini yuborishda xato: {e}")
 
-
 async def delete_message_after_delay(chat_id: int, message_id: int, context: ContextTypes.DEFAULT_TYPE, delay: int):
-    """Xabarni ma'lum vaqtdan keyin o'chiradi."""
     await asyncio.sleep(delay)
     try:
         await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
     except Exception:
         pass
 
-
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-
     app.add_handler(ChatMemberHandler(on_added_to_group, ChatMemberHandler.MY_CHAT_MEMBER))
-
     app.add_handler(CommandHandler("start", start))
-
+    app.add_handler(CommandHandler("ban", manual_ban))
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^\.ban'), manual_ban))
     app.add_handler(
         MessageHandler(
-            filters.TEXT & (filters.ChatType.GROUP | filters.ChatType.SUPERGROUP),
+            filters.TEXT & (filters.ChatType.GROUP | filters.ChatType.SUPERGROUP) & ~filters.COMMAND & ~filters.Regex(r'^\.ban'),
             check_message,
         )
     )
-
     log.info("Bot ishga tushdi ✅")
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
