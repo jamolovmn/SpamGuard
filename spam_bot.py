@@ -154,20 +154,12 @@ SPAM_KEYWORDS = [
     "18+ profilimga",
 ]
 
-<<<<<<< HEAD
-=======
-
->>>>>>> f8d0da90c9562d730324bfa78c9e5f168feee47d
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s",
     level=logging.INFO,
 )
 log = logging.getLogger(__name__)
 
-<<<<<<< HEAD
-=======
-
->>>>>>> f8d0da90c9562d730324bfa78c9e5f168feee47d
 def has_spam_keyword(text: str) -> bool:
     text_lower = text.lower()
     for kw in SPAM_KEYWORDS:
@@ -195,10 +187,6 @@ async def delete_message(chat_id: int, message_id: int, context: ContextTypes.DE
     except Exception as e:
         log.warning(f"Xabarni o'chirishda xato: {e}")
 
-<<<<<<< HEAD
-=======
-
->>>>>>> f8d0da90c9562d730324bfa78c9e5f168feee47d
 async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message or not message.text:
@@ -213,10 +201,6 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log.info(f"Kalit so'z topildi | User: {user.id} | Chat: {chat.id}")
 
     no_username = not user.username
-<<<<<<< HEAD
-=======
-
->>>>>>> f8d0da90c9562d730324bfa78c9e5f168feee47d
     photo_count = await get_profile_photo_count(user.id, context)
     one_photo = (photo_count == 1)
 
@@ -227,16 +211,8 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if no_username and one_photo:
         log.warning(f"🚨 SPAM aniqlandi! User: {user.id} (@{user.username}) | Chat: {chat.id}")
-<<<<<<< HEAD
         await delete_message(chat.id, message.message_id, context)
         await ban_user(chat.id, user.id, context)
-=======
-
-        await delete_message(chat.id, message.message_id, context)
-
-        await ban_user(chat.id, user.id, context)
-
->>>>>>> f8d0da90c9562d730324bfa78c9e5f168feee47d
         try:
             msg = await context.bot.send_message(
                 chat_id=chat.id,
@@ -269,10 +245,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = "+ <b>SpamKuzatchi</b> botini guruhga qo'shish uchun pastdagi tugmani bosing:"
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     else:
-<<<<<<< HEAD
-=======
-        # Guruhda faqat adminlar /start ishlata oladi
->>>>>>> f8d0da90c9562d730324bfa78c9e5f168feee47d
         try:
             member_info = await chat.get_member(user.id)
             if member_info.status not in ["administrator", "creator"]:
@@ -287,15 +259,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if member.status == "administrator":
                 text = "✅ <b>Bot faol!</b>"
                 msg = await update.message.reply_text(text, parse_mode="HTML")
-<<<<<<< HEAD
                 asyncio.create_task(delete_message_after_delay(chat.id, msg.message_id, context, 10))
             else:
-=======
-      
-                asyncio.create_task(delete_message_after_delay(chat.id, msg.message_id, context, 10))
-            else:
-  
->>>>>>> f8d0da90c9562d730324bfa78c9e5f168feee47d
                 keyboard = [[InlineKeyboardButton("+ Admin huquqini berish", url=admin_link)]]
                 text = "+ Bot ishlashi uchun unga <b>Admin</b> huquqini berishingiz kerak:"
                 await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -333,47 +298,6 @@ async def manual_ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
         asyncio.create_task(delete_message_after_delay(chat.id, message.message_id, context, 15))
     except Exception as e:
         log.error(f"Manual ban xatosi: {e}")
-
-async def manual_ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin reply orqali /ban yoki .ban yozsa foydalanuvchini ban qiladi."""
-    message = update.message
-    if not message or not message.reply_to_message:
-        return
-
-    chat = update.effective_chat
-    user = update.effective_user
-
-    # 1. Adminlikni tekshirish (buyruq bergan odam adminmi?)
-    try:
-        member_info = await chat.get_member(user.id)
-        if member_info.status not in ["administrator", "creator"]:
-            return
-    except Exception as e:
-        log.warning(f"Adminlikni tekshirishda xato: {e}")
-        return
-
-    target_user = message.reply_to_message.from_user
-    
-    # Botning o'zini ban qilib bo'lmaydi
-    bot_info = await context.bot.get_me()
-    if target_user.id == bot_info.id:
-        return
-
-    try:
-        # 2. Ban qilish
-        await context.bot.ban_chat_member(chat_id=chat.id, user_id=target_user.id)
-        
-        # 3. Xabar yuborish
-        msg = await message.reply_text(
-            f"🚫 <b>{target_user.full_name}</b> guruhdan ban qilindi!", 
-            parse_mode="HTML"
-        )
-        # Xabarlarni o'chirish
-        asyncio.create_task(delete_message_after_delay(chat.id, msg.message_id, context, 15))
-        asyncio.create_task(delete_message_after_delay(chat.id, message.message_id, context, 15))
-    except Exception as e:
-        log.error(f"Manual ban xatosi: {e}")
-
 
 async def on_added_to_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     result = update.my_chat_member
@@ -425,27 +349,12 @@ async def delete_message_after_delay(chat_id: int, message_id: int, context: Con
     except Exception:
         pass
 
-<<<<<<< HEAD
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(ChatMemberHandler(on_added_to_group, ChatMemberHandler.MY_CHAT_MEMBER))
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("ban", manual_ban))
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^\.ban'), manual_ban))
-=======
-
-def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    app.add_handler(ChatMemberHandler(on_added_to_group, ChatMemberHandler.MY_CHAT_MEMBER))
-
-    app.add_handler(CommandHandler("start", start))
-    
-    # Manual ban handlerlari (/ban va .ban)
-    app.add_handler(CommandHandler("ban", manual_ban))
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^\.ban'), manual_ban))
-
->>>>>>> f8d0da90c9562d730324bfa78c9e5f168feee47d
     app.add_handler(
         MessageHandler(
             filters.TEXT & (filters.ChatType.GROUP | filters.ChatType.SUPERGROUP) & ~filters.COMMAND & ~filters.Regex(r'^\.ban'),
